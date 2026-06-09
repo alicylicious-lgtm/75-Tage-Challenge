@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<!-- v1.5 -->
+<!-- v1.6 -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -302,7 +302,7 @@ function dayDate(name,idx){
   return d.toLocaleDateString('de-AT',{weekday:'short',day:'2-digit',month:'2-digit'});
 }
 const getDayData=(name,idx)=>state[name][idx]||{water:null,outdoor:null,indoor:null,sugar:null,read:null,photo:null,note:'',cc:false};
-const dayScore=(name,idx)=>TASKS.reduce((s,t)=>s+(getDayData(name,idx)[t.key]??0),0);
+const dayScore=(name,idx)=>TASKS.reduce((s,t)=>{const v=getDayData(name,idx)[t.key];return s+(typeof v==='number'?v:0);},0);
 function totalScore(name){let s=0;for(let i=0;i<totalDays(name);i++)s+=dayScore(name,i);return s;}
 function streak(name){
   const today=getToday(name);let s=0;
@@ -729,8 +729,8 @@ function renderDayCard(name,idx,isToday,isMe){
             <div><div class="task-name">${task.name}</div><div class="task-sub">${task.sub}</div></div>
           </div>
           <div class="score-btns">
-            <button class="score-btn ${val===0?'sel-0':''}" onclick="setScore('${name}',${idx},'${task.key}',0)">✗</button>
-            <button class="score-btn ${val===1?'sel-photo':''}" onclick="setScore('${name}',${idx},'${task.key}',1)">📸</button>
+            <button class="score-btn ${val===0?'sel-0':''}" onclick="setScore('${name}',${idx},'photo',0)">✗</button>
+            <button class="score-btn ${val==='done'?'sel-photo':''}" onclick="setScore('${name}',${idx},'photo','done')">📸</button>
           </div></div>`;
       }
     }else{
@@ -759,7 +759,7 @@ function renderDayCard(name,idx,isToday,isMe){
           </div>
           <div class="score-btns">
             <span class="score-btn ${val===0?'sel-0':''}" style="opacity:${val===0?'1':'0.3'};cursor:default;">✗</span>
-            <span class="score-btn ${val===1?'sel-photo':''}" style="opacity:${val===1?'1':'0.3'};cursor:default;">📸</span>
+            <span class="score-btn ${val==='done'?'sel-photo':''}" style="opacity:${val==='done'?'1':'0.3'};cursor:default;">📸</span>
           </div></div>`;
       }
     }
