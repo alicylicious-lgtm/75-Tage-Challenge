@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<!-- v1.1 -->
+<!-- v1.2 -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -182,6 +182,7 @@ const PERSONS = [
   { name:'Burak',   start:new Date(2026,5,9), days:75 },
   { name:'Doris',   start:new Date(2026,5,9), days:75 },
   { name:'Elena',   start:new Date(2026,5,9), days:75 },
+  { name:'Elham',   start:new Date(2026,5,9), days:75 },
   { name:'Jasmin',  start:new Date(2026,5,9), days:75 },
   { name:'Michel',  start:new Date(2026,5,9), days:75 },
   { name:'Mona',    start:new Date(2026,5,9), days:75 },
@@ -197,11 +198,11 @@ const PERSONS = [
 const MAX_PTS=11, DAY_GOAL=8, GOAL_PCT=0.6, MAX_CC=8;
 const TASKS=[
   {key:'water',  icon:'💧',name:'Wasser',    sub:'2L = 2 Pkt · 1,5L = 1 Pkt',max:2},
-  {key:'outdoor',icon:'👟',name:'Outdoor',   sub:'45 Min = 2 · 20 Min = 1',  max:2},
-  {key:'indoor', icon:'🏋️',name:'Indoor',    sub:'45 Min = 2 · 20 Min = 1',  max:2},
+  {key:'schritte',icon:'👟',name:'Schritte',   sub:'≥10.000 = 2 · ≥8.000 = 1 · <8.000 = 0',  max:2},
+  {key:'training',icon:'🏋️',name:'Training',  sub:'Gemacht = 2 · Nicht = 0',  max:2},
   {key:'sugar',  icon:'🚫',name:'Kein Zucker',sub:'Kein = 2 · 1x klein = 1', max:2},
   {key:'read',   icon:'📚',name:'Lesen',     sub:'10 Seiten = 2 · 5 = 1',    max:2},
-  {key:'photo',  icon:'📸',name:'Foto',      sub:'Gemacht = 1 · Nicht = 0',  max:1},
+  {key:'photo',  icon:'📸',name:'Foto',      sub:'Nur für dich — Progress verfolgen · Gemacht = 1 · Nicht = 0',  max:1},
 ];
 const MOTIVATIONS=['💪 Stark gemacht!','🌟 Weiter so!','🔥 On fire!','✨ Unaufhaltbar!',
   '🏆 Unschlagbar!','⚡ Diszipliniert & fokussiert!','💎 Top!','🎯 Volltreffer!','🚀 So geht das!','❤️ Proud of you!'];
@@ -613,7 +614,7 @@ function renderOverview(){
   const sorted=[...PERSONS].sort((a,b)=>{
     return(totalScore(b.name)/totalGoal(b.name))-(totalScore(a.name)/totalGoal(a.name));
   });
-  const medals=['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟','1️⃣1️⃣','1️⃣2️⃣','1️⃣3️⃣','1️⃣4️⃣','1️⃣5️⃣','1️⃣6️⃣'];
+  const medals=['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟','1️⃣1️⃣','1️⃣2️⃣','1️⃣3️⃣','1️⃣4️⃣','1️⃣5️⃣','1️⃣6️⃣','1️⃣7️⃣'];
   let html=`<div class="section-title">Gruppen-Übersicht</div>
   <div style="display:flex;gap:6px;margin-bottom:14px;">
     ${sorted.slice(0,5).map((p,i)=>`
