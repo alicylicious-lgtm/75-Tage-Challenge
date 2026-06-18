@@ -117,6 +117,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 #install-banner{display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:white;border:2px solid var(--rose-light);border-radius:20px;padding:14px 20px;box-shadow:0 4px 24px rgba(74,124,126,.25);z-index:200;align-items:center;gap:12px;max-width:340px;width:90%;}
 ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:var(--rose-light);border-radius:99px;}
 </style>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW Fehler:', err));
+  }
+</script>
 </head>
 <body>
 <div id="loading-screen">
@@ -985,7 +990,54 @@ window.sendGif = async function(gifUrl) {
   } catch(e) { showToast('Fehler beim Senden 😢'); }
 };
 
+// ── PUSH NOTIFICATIONS ───────────────────────────────────────────────────────
+const VAPID_PUBLIC_KEY = "BGBKusoY_VindqN7gFMRHrQUm0hPH-fIC2NMI1wp39gsW4I3ykEv77aaZLhvVJDwwIBp0AXwsE_aeyWuAdeB0KY";
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return new Uint8Array([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function registerPush(person) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+    await setDoc(doc(db, 'pushSubscriptions', person), {
+      person,
+      subscription: sub.toJSON(),
+      updatedAt: new Date()
+    });
+  } catch(e) {
+    console.warn('Push Subscription fehlgeschlagen:', e);
+  }
+}
+
+const _origNavigate = navigate;
+window.navigate = function(page) {
+  _origNavigate(page);
+  if (page === 'home' && currentPerson) {
+    setTimeout(() => registerPush(currentPerson), 500);
+  }
+};
+
 initListeners();
+
+// Push beim Auto-Login
+(async () => {
+  const saved = localStorage.getItem('challenge_user_v3');
+  if (saved) {
+    await new Promise(r => setTimeout(r, 1500));
+    if (currentPerson) registerPush(currentPerson);
+  }
+})();
 
 </script>
 </body>
