@@ -335,12 +335,16 @@ async function loadPins(){
     pins=snap.exists()?snap.data():{};
   }catch(e){pins={};}
 }
+async function hashPin(pin){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pin));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
 async function savePin(name,pin){
-  pins[name]=pin;
+  pins[name]=await hashPin(pin);
   await setDoc(doc(db,'pins','pins'),pins,{merge:true});
 }
 function hasPin(name){return !!pins[name];}
-function checkPin(name,pin){return pins[name]===pin;}
+async function checkPin(name,pin){return pins[name]===(await hashPin(pin));}
 
 // ── FIREBASE LISTENERS ────────────────────────────────────────────────────────
 async function initListeners(){
@@ -536,13 +540,13 @@ function renderEnterPin(name){
   </div>`;
 }
 
-window.pinKeyEnter=function(k,name){
+window.pinKeyEnter=async function(k,name){
   if(k===''){return;}
   if(k==='⌫'){pinBuffer=pinBuffer.slice(0,-1);}
   else if(pinBuffer.length<4){pinBuffer+=k;}
   updatePinDisplay();
   if(pinBuffer.length===4){
-    if(checkPin(name,pinBuffer)){
+    if(await checkPin(name,pinBuffer)){
       pinBuffer='';
       currentPerson=name;
       localStorage.setItem('challenge_user_v3',name);
@@ -1021,8 +1025,8 @@ async function registerPush(person) {
 }
 
 const _origNavigate = navigate;
-window.navigate = function(page) {
-  _origNavigate(page);
+window.navigate = function(page, arg=null) {
+  _origNavigate(page, arg);
   if (page === 'home' && currentPerson) {
     setTimeout(() => registerPush(currentPerson), 500);
   }
