@@ -295,6 +295,7 @@ function dayDate(name,idx){
 const getDayData=(name,idx)=>{const d=state[name][idx]||{};return{water:d.water??null,schritte:d.schritte??null,training:d.training??null,sugar:d.sugar??null,read:d.read??null,photo:d.photo??null,sleepEarly:d.sleepEarly??null,sleepLong:d.sleepLong??null,sleepTime:d.sleepTime??'',sleepHours:d.sleepHours??null,note:d.note||'',cc:d.cc||false};};
 const dayScore=(name,idx)=>TASKS.reduce((s,t)=>{
   if(t.type==='sleep'){
+    if(idx<17) return s;
     const d=getDayData(name,idx);
     return s+(d.sleepEarly===true?1.5:0)+(d.sleepLong===true?1.5:0);
   }
@@ -714,14 +715,16 @@ function renderDayCard(name,idx,isToday,isMe){
   const d=getDayData(name,idx),sc=dayScore(name,idx);
   const badgeCls=sc>=DAY_GOAL?'great':sc>=5?'warn':'';
   const emoji=sc>=DAY_GOAL?'✅':sc>=5?'⚠️':'○';
+  const dayMaxPts=idx>=17?MAX_PTS:11;
   let html=`<div class="day-card" id="day-card-${idx}">
     <div class="day-header">
       <div><div class="day-num">${isToday?'🌟 Heute – ':''}Tag ${idx+1}</div>
            <div class="day-date">${dayDate(name,idx)}</div></div>
-      <div class="day-score-badge ${badgeCls}">${emoji} ${sc}/${MAX_PTS}</div>
+      <div class="day-score-badge ${badgeCls}">${emoji} ${sc}/${dayMaxPts}</div>
     </div>`;
   TASKS.forEach(task=>{
     const val=d[task.key];
+    if(task.type==='sleep' && idx<17) return;
     if(isMe){
       if(task.type==='sleep'){
         const earlyOn=d.sleepEarly===true, earlyOff=d.sleepEarly===false;
