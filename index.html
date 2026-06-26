@@ -828,7 +828,7 @@ function renderHome(){
                   <b>+1 Punkt</b> wenn dein Schlafbeginn <b>maximal 45 Minuten</b> von deinem persönlichen Durchschnitt abweicht.<br>
                   <b>⭐ +1 Bonuspunkt</b> wenn dein Schlafbeginn zwischen <b>22:00 und 23:00 Uhr</b> liegt.<br><br>
                   💡 <i>Es geht nicht darum, vor 23 Uhr zu schlafen — sondern darum, <b>regelmäßig zur selben Zeit</b> zu schlafen. Laut aktueller Forschung ist Schlafregelmäßigkeit sogar wichtiger als die Dauer.</i><br><br>
-                  🛡 <b>Streakretter:</b> Wer 5 Tage in Folge denselben Schlafbeginn (±30 Min) hält, verdient einen Streakretter — nutzbar wenn mal ein Tag nicht klappt.
+                  🛡 <b>Joker:</b> Wer 5 Tage in Folge denselben Schlafbeginn (±30 Min) hält, verdient einen Joker — nutzbar wenn mal ein Tag nicht klappt.
                 </div>`
               :t.max===2
               ?`<span class="pt-badge pt-2">2 Pkt: voll</span><span class="pt-badge pt-1">1 Pkt: halb</span><span class="pt-badge pt-0">0: nichts</span>`
@@ -916,7 +916,7 @@ function renderPerson(name,isMe){
     <div class="stat-card"><div class="stat-val">${st}</div><div class="stat-label">Streak 🔥</div></div>
     <div class="stat-card"><div class="stat-val">${dot}</div><div class="stat-label">✅ Tage</div></div>
     <div class="stat-card"><div class="stat-val" style="font-size:18px;">⭐${Array.from({length:getToday(name)+1},(_,i)=>sleepBonusPt(name,i)).reduce((a,b)=>a+b,0)}</div><div class="stat-label">Bonus</div></div>
-    <div class="stat-card"><div class="stat-val" style="font-size:18px;">🛡${availableStreakSavers(name)}</div><div class="stat-label">Retter</div></div>
+    <div class="stat-card"><div class="stat-val" style="font-size:18px;">🛡${availableStreakSavers(name)}</div><div class="stat-label">Joker</div></div>
   </div>
   <div class="progress-section">
     <div class="progress-label"><span>${name}s Fortschritt</span><span>${total} / ${goal} (${Math.min(pct,100)}%)</span></div>
@@ -985,7 +985,7 @@ function renderDayCard(name,idx,isToday,isMe){
             <div style="font-size:11px;color:var(--text-soft);">📊 Regelmäßigkeit — ${avgStr}</div>
             ${bonus?`<div style="font-size:12px;font-weight:600;color:#276221;background:#D4EDDA;border-radius:8px;padding:6px 10px;">⭐ Bonus +1 Pkt: Schlafbeginn zwischen 22–23 Uhr!</div>`:''}
             ${total>=2?`<div style="text-align:center;font-size:13px;font-weight:600;color:#276221;background:#D4EDDA;border-radius:8px;padding:6px;">🌙 Perfekter Schlaf!</div>`:''}
-            ${savers>0?`<div style="font-size:12px;color:var(--rose-deep);background:rgba(179,43,65,.08);border-radius:8px;padding:6px 10px;">🛡 ${savers} Streakretter verfügbar</div>`:''}
+            ${savers>0?`<div style="font-size:12px;color:var(--rose-deep);background:rgba(179,43,65,.08);border-radius:8px;padding:6px 10px;">🛡 ${savers} Joker verfügbar</div>`:''}
           </div>
         </div>`;
       } else if(task.max===3){
@@ -1236,7 +1236,7 @@ window.setSleepTime=function(name,idx,val){
   else if(sc>=DAY_GOAL&&prevSc<DAY_GOAL)showToast(randEgo(name));
   else if(sc<=5&&prevSc>5){const t=getTaunt(name,getDayData(name,idx).sugar===0);if(t)showToast(t);}
   if(newBonus>prevBonus)showToast('⭐ Bonuspunkt! Schlafbeginn 22–23 Uhr 🎯');
-  if(newSavers>prevSavers)showToast('🛡 Streakretter verdient! 5 Tage regelmäßiger Schlaf!');
+  if(newSavers>prevSavers)showToast('🛡 Joker verdient! 5 Tage regelmäßiger Schlaf!');
   setTimeout(()=>window.scrollTo({top:scrollY}),10);
 };
 window.setSleepHours=function(name,idx,val){
