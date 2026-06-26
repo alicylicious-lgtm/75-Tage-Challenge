@@ -1193,8 +1193,8 @@ window.setScore=function(name,idx,key,val){
   if(name!==currentPerson){showToast('🔒 Nur '+name+' kann das ändern!');return;}
   if(!state[name][idx])state[name][idx]={};
   const prev=state[name][idx][key];
+  const prevSc=dayScore(name,idx);
   state[name][idx][key]=prev===val?null:val;
-  // Set page BEFORE saving so onSnapshot silentRender stays on person page
   window._currentPage='person';
   window._currentArg=null;
   const scrollY=window.scrollY;
@@ -1202,9 +1202,9 @@ window.setScore=function(name,idx,key,val){
   savePerson(name);
   const sc=dayScore(name,idx);
   const sugarFailed=getDayData(name,idx).sugar===0;
-  if(sc===MAX_PTS)showToast('🌟 Perfekter Tag! '+randEgo(name));
-  else if(sc>=DAY_GOAL&&(prev??0)<DAY_GOAL)showToast(randEgo(name));
-  else if(sc<=5&&sc<(prev??99)){const t=getTaunt(name,sugarFailed);if(t)showToast(t);}
+  if(sc===MAX_PTS&&prevSc<MAX_PTS)showToast('🌟 Perfekter Tag! '+randEgo(name));
+  else if(sc>=DAY_GOAL&&prevSc<DAY_GOAL)showToast(randEgo(name));
+  else if(sc<=5&&prevSc>5){const t=getTaunt(name,sugarFailed);if(t)showToast(t);}
   setTimeout(()=>{
     window.scrollTo({top:scrollY});
     const el=document.getElementById('day-card-'+idx);
@@ -1221,6 +1221,7 @@ window.setCC=function(name,idx,val){
 window.setSleepTime=function(name,idx,val){
   if(name!==currentPerson)return;
   if(!state[name][idx])state[name][idx]={};
+  const prevSc=dayScore(name,idx);
   const prevBonus=sleepBonusPt(name,idx);
   const prevSavers=earnedStreakSavers(name);
   state[name][idx].sleepTime=val;
@@ -1230,9 +1231,9 @@ window.setSleepTime=function(name,idx,val){
   const sc=dayScore(name,idx);
   const newBonus=sleepBonusPt(name,idx);
   const newSavers=earnedStreakSavers(name);
-  if(sc===MAX_PTS)showToast('🌟 Perfekter Tag! '+randEgo(name));
-  else if(sc>=DAY_GOAL)showToast(randEgo(name));
-  else if(sc<=5){const t=getTaunt(name,getDayData(name,idx).sugar===0);if(t)showToast(t);}
+  if(sc===MAX_PTS&&prevSc<MAX_PTS)showToast('🌟 Perfekter Tag! '+randEgo(name));
+  else if(sc>=DAY_GOAL&&prevSc<DAY_GOAL)showToast(randEgo(name));
+  else if(sc<=5&&prevSc>5){const t=getTaunt(name,getDayData(name,idx).sugar===0);if(t)showToast(t);}
   if(newBonus>prevBonus)showToast('⭐ Bonuspunkt! Schlafbeginn 22–23 Uhr 🎯');
   if(newSavers>prevSavers)showToast('🛡 Streakretter verdient! 5 Tage regelmäßiger Schlaf!');
   setTimeout(()=>window.scrollTo({top:scrollY}),10);
@@ -1246,10 +1247,10 @@ window.setSleepHours=function(name,idx,val){
   const scrollY=window.scrollY;
   document.getElementById('main-content').innerHTML=renderPerson(currentPerson,true);
   const sc=dayScore(name,idx);
-  if(sc===MAX_PTS)showToast('🌟 Perfekter Tag! '+randEgo(name));
+  if(sc===MAX_PTS&&prevSc<MAX_PTS)showToast('🌟 Perfekter Tag! '+randEgo(name));
   else if(sc>=DAY_GOAL&&prevSc<DAY_GOAL)showToast(randEgo(name));
+  else if(sc<=5&&prevSc>5){const t=getTaunt(name,getDayData(name,idx).sugar===0);if(t)showToast(t);}
   else if(sc>prevSc)showToast('😴 Schlafdauer eingetragen! +1 Punkt');
-  else if(sc<=5){const t=getTaunt(name,getDayData(name,idx).sugar===0);if(t)showToast(t);}
   setTimeout(()=>window.scrollTo({top:scrollY}),10);
 };
 window.scrollToToday=function(){const el=document.getElementById('day-card-'+getToday(currentPerson));if(el)el.scrollIntoView({behavior:'smooth',block:'start'});};
