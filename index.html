@@ -198,8 +198,165 @@ const TASKS=[
   {key:'sleep',  icon:'😴',name:'Schlaf',    sub:'≥7h Schlafdauer: 1 Pkt · Regelmäßiger Schlafbeginn (±45 Min): 1 Pkt', max:2, type:'sleep'},
   {key:'photo',  icon:'📸',name:'Foto',      sub:'Nur für dich — Progress verfolgen · keine Punkte',  max:0},
 ];
-const MOTIVATIONS=['💪 Stark gemacht!','🌟 Weiter so!','🔥 On fire!','✨ Unaufhaltbar!',
-  '🏆 Unschlagbar!','⚡ Diszipliniert & fokussiert!','💎 Top!','🎯 Volltreffer!','🚀 So geht das!','❤️ Proud of you!'];
+// Standard toasts — [Name] gets replaced at runtime
+const MOTIVATIONS_TPL=[
+  '[Name], oida! 🔥','[Name], du Maschine! 💪','Na servas [Name]! ⚡',
+  '[Name], not bad at all 👑','Stark, [Name]! 💎','[Name] delivers! 🚀',
+  'Unaufhaltbar, [Name]! ✨','[Name], you ate! 🔥','[Name], des war stark! 💪',
+  'Weiter so, [Name]! 🌟','[Name], on fire heute! 🔥','Volltreffer, [Name]! 🎯',
+  'Diszipliniert & fokussiert — [Name] macht\'s vor! ⚡','[Name], unschlagbar! 🏆',
+  'Top, [Name]! 💎','Proud of you, [Name]! ❤️'
+];
+function randMotivation(name){
+  const t=MOTIVATIONS_TPL[Math.floor(Math.random()*MOTIVATIONS_TPL.length)];
+  return t.replace('[Name]',name);
+}
+
+// Personalized ego boosts (≥8 pts)
+const EGO={
+  'Alice':[
+    'Step Queen has entered the chat 👟🔥',
+    'Oida Alice, des machst nur du! ⚡',
+    'Alice-Energy ist heute unbeschreiblich 💎',
+    'Nobody\'s catching Alice today 👟👑',
+    'Alice, deine Schritte haben heute Überstunden 👟😤',
+    'Alice simply walks different 👟✨',
+    'Wer braucht ein Auto wenn man Alice ist 👟😂',
+  ],
+  'Bieta':[
+    'Bieta sieht Zucker und geht einfach weiter. Iconic. 🚫🍬',
+    'Bieta\'s willpower > alles andere 💪',
+    'Kein Zucker, kein Problem — das ist Bieta-Level 👑',
+    'Bieta, bei dir sieht das so leicht aus ✨',
+    'Bieta, du lässt das so leicht aussehen ✨',
+    'Bieta und Disziplin — eine Liebesgeschichte 🚫🍬',
+    'Zucker hat heute keine Chance. Bieta-Style. 😤',
+    'Bieta, honestly iconic 👑',
+  ],
+  'Schueib':[
+    'No hunger. No jetlag. No limits. Schueib. 👑',
+    'Schueib ate and left no crumbs. Periodt 🔥',
+    'Main character energy, Schueib! 🎬',
+    'Schueib einfach Schueib-ing 😎🔥',
+    'Schueib doesn\'t need motivation. He IS the motivation 🔥',
+    'Schueib, no notes 👑',
+    'Oida Schueib, einfach so. Einfach so! ⚡',
+    'Schueib said let\'s go and meant it 🔥',
+  ],
+  'Michel':[
+    'Selbst deine Tennisgegner würden das respektieren 🎾👏',
+    'Michel spricht nicht, Michel liefert 😌🎾',
+    'Heute kein Kommentar nötig, Michel ✅',
+    'Michel, heute sogar mehr als 7000 Schritte 🎾💪',
+    'Auf dem Tennisplatz UND in der App — Michel dominiert 🎾🔥',
+    'Michel, heute gibt\'s keine Liebe Grüße — nur Respekt 👏',
+    'Stimmt, Michel. Die anderen sind einfach Rotz. 😂',
+    'Alle Luschen, außer Michel. 👑😌',
+  ],
+  'Behrooz':[
+    'Michel ist stolz 🏐👑',
+    'Behrooz energy. Einfach machen. ⚡',
+    '70 Jahre und noch immer der Stärkste im Raum 🏐🔥',
+    'Legend behavior, Behrooz! 🏐👑',
+    'Behrooz macht\'s und erklärt\'s nicht 🏐😌',
+    '70 und kein bisschen leise 🏐🔥',
+    'Behrooz jan, heute wieder geliefert 🏐⚡',
+    'Volleyball, App, Leben — Behrooz macht alles 🏐👑',
+  ],
+};
+function randEgo(name){
+  const arr=EGO[name];
+  if(!arr)return randMotivation(name);
+  return arr[Math.floor(Math.random()*arr.length)];
+}
+
+// Taunts (≤5 pts) — from:to mapping
+const TAUNTS={
+  'Alice':{
+    targets:['Bieta','Schueib','Michel'],
+    msgs:[
+      'Alice fragt: habt ihr heute ihre Schritte überholt? Nein? Dachte sie sich 👟😌',
+      'Alice hat mehr Schritte im Schlaf als du heute wach 😂',
+      'Alice würde das kommentieren, aber sie ist gerade am Gehen 🚶‍♀️😌',
+      'Step Queen Alice schaut zu — und ist enttäuscht 👟👑',
+    ]
+  },
+  'Bieta':{
+    targets:['Alice','Schueib','Michel'],
+    msgs:[
+      'Bieta hat heute keinen Zucker gegessen. Nur so als Info. 🚫😌',
+      'Bieta schaut auf deinen Score und sagt nichts. Einfach nichts. 😶',
+      'Kein Zucker, mehr Punkte — Bieta weiß Bescheid 😤',
+    ]
+  },
+  'Michel':{
+    targets:['Alice','Bieta','Schueib'],
+    msgs:[
+      'In Michels Augen bist du heute Rotz — kein Tennis gespielt 🎾😂',
+      'Michel hat bereits 7000 Schritte. Liebe Grüße 😌',
+      'Michel tippt gerade \'Liebe Grüße\' ⌨️😌',
+      'Heute kein Tennis? Michel sieht\'s. Michel schweigt. Liebe Grüße. 😌🎾',
+    ]
+  },
+  'Behrooz':{
+    targets:['Alice','Bieta','Schueib'],
+    msgs:[
+      'Michels Papa macht das besser — und er ist 70 😂',
+      'Behrooz loggt seit 3 Tagen nicht ein und hat trotzdem mehr Energie als du heute 😂',
+      'Behrooz schaut vom Volleyballfeld rüber 🏐👀',
+    ],
+    michel:'Dein Papa macht das besser — und er ist 70 😂',
+  },
+};
+// Self-taunts when you yourself have ≤5 pts
+const SELF_TAUNTS={
+  'Alice':[
+    'Auch die Step Queen hat mal einen Off-Day 👟😅',
+    'Michel schickt Liebe Grüße, Alice 😌',
+  ],
+  'Bieta':{ // sugar-specific handled separately
+    generic:['Auch Superheldinnen brauchen einen Ruhetag 🦸‍♀️'],
+    sugar:['Bieta... war da Zucker? 🍬👀','Die Zucker-Abstinenzlerin hat heute gezwinkert 🍬😂'],
+  },
+  'Schueib':[
+    'Oida Schueib, was war das heute? 😂',
+    'Today was not a Schueib day 😂',
+    'Oida Schueib... Liebe Grüße von Michel 😌',
+  ],
+  'Michel':[
+    'Michel, dein Papa ist 70 und macht\'s besser 😂🏐',
+    'Heute kein Tennis Michel? Liebe Grüße von dir selbst 😌🎾',
+    'Michel, auch 7000 Schritte retten heute nix 😂',
+  ],
+  'Behrooz':[
+    'Behrooz jan, die App vermisst dich 👀🏐',
+    '70 Jahre und noch immer eine Legende 🏐👑',
+    'Michels Papa gibt niemals auf! ⚡',
+  ],
+};
+function getTaunt(name, sugarFailed){
+  const toasts=[];
+  // from others
+  Object.entries(TAUNTS).forEach(([from,cfg])=>{
+    if(from===name)return;
+    const isMichelTarget=cfg.targets.includes(name)||(from==='Behrooz'&&name==='Michel');
+    if(!isMichelTarget)return;
+    if(from==='Behrooz'&&name==='Michel'){
+      toasts.push(cfg.michel);return;
+    }
+    if(cfg.targets.includes(name))toasts.push(...cfg.msgs);
+  });
+  // self
+  const self=SELF_TAUNTS[name];
+  if(Array.isArray(self))toasts.push(...self);
+  else if(self){
+    toasts.push(...(self.generic||[]));
+    if(sugarFailed)toasts.push(...(self.sugar||[]));
+  }
+  if(!toasts.length)return null;
+  return toasts[Math.floor(Math.random()*toasts.length)];
+}
+const MOTIVATIONS=MOTIVATIONS_TPL; // legacy compat
 const EMOJIS=['❤️','🔥','💪','⚡','😂','👏','✨','🥇'];
 const QUOTES=[
   {text:"Die Waage misst dein Gewicht, nicht deinen Wert.",emoji:"🌸"},
@@ -763,6 +920,7 @@ function renderPerson(name,isMe){
     <div class="progress-label"><span>${name}s Fortschritt</span><span>${total} / ${goal} (${Math.min(pct,100)}%)</span></div>
     <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(pct,100)}%"></div></div>
     ${st>=3?`<div style="margin-top:10px"><span class="streak-badge">🔥 ${st} Tage am Stück!</span></div>`:''}
+    ${availableStreakSavers(name)>0?`<div style="margin-top:6px"><span class="streak-badge" style="background:linear-gradient(135deg,#B32B41,#E07080);">🛡 ${availableStreakSavers(name)} Streakretter</span></div>`:''}
   </div>
   <div class="timeline">
     ${Array.from({length:today+1},(_,i)=>{
@@ -1043,8 +1201,10 @@ window.setScore=function(name,idx,key,val){
   document.getElementById('main-content').innerHTML=renderPerson(currentPerson,true);
   savePerson(name);
   const sc=dayScore(name,idx);
-  if(sc===MAX_PTS)showToast('🌟 Perfekter Tag! '+MOTIVATIONS[Math.floor(Math.random()*MOTIVATIONS.length)]);
-  else if(sc>=DAY_GOAL&&(prev??0)<DAY_GOAL)showToast(MOTIVATIONS[Math.floor(Math.random()*MOTIVATIONS.length)]);
+  const sugarFailed=getDayData(name,idx).sugar===0;
+  if(sc===MAX_PTS)showToast('🌟 Perfekter Tag! '+randEgo(name));
+  else if(sc>=DAY_GOAL&&(prev??0)<DAY_GOAL)showToast(randEgo(name));
+  else if(sc<=5&&sc<(prev??99)){const t=getTaunt(name,sugarFailed);if(t)showToast(t);}
   setTimeout(()=>{
     window.scrollTo({top:scrollY});
     const el=document.getElementById('day-card-'+idx);
@@ -1061,23 +1221,35 @@ window.setCC=function(name,idx,val){
 window.setSleepTime=function(name,idx,val){
   if(name!==currentPerson)return;
   if(!state[name][idx])state[name][idx]={};
+  const prevBonus=sleepBonusPt(name,idx);
+  const prevSavers=earnedStreakSavers(name);
   state[name][idx].sleepTime=val;
   savePerson(name);
-  // re-render to update points display
   const scrollY=window.scrollY;
   document.getElementById('main-content').innerHTML=renderPerson(currentPerson,true);
+  const sc=dayScore(name,idx);
+  const newBonus=sleepBonusPt(name,idx);
+  const newSavers=earnedStreakSavers(name);
+  if(sc===MAX_PTS)showToast('🌟 Perfekter Tag! '+randEgo(name));
+  else if(sc>=DAY_GOAL)showToast(randEgo(name));
+  else if(sc<=5){const t=getTaunt(name,getDayData(name,idx).sugar===0);if(t)showToast(t);}
+  if(newBonus>prevBonus)showToast('⭐ Bonuspunkt! Schlafbeginn 22–23 Uhr 🎯');
+  if(newSavers>prevSavers)showToast('🛡 Streakretter verdient! 5 Tage regelmäßiger Schlaf!');
   setTimeout(()=>window.scrollTo({top:scrollY}),10);
 };
 window.setSleepHours=function(name,idx,val){
   if(name!==currentPerson)return;
   if(!state[name][idx])state[name][idx]={};
+  const prevSc=dayScore(name,idx);
   state[name][idx].sleepHours=parseFloat(val)||null;
   savePerson(name);
   const scrollY=window.scrollY;
   document.getElementById('main-content').innerHTML=renderPerson(currentPerson,true);
   const sc=dayScore(name,idx);
-  if(sc===MAX_PTS)showToast('🌟 Perfekter Tag! '+MOTIVATIONS[Math.floor(Math.random()*MOTIVATIONS.length)]);
-  else if(sc>=3)showToast('😴 Schlaf eingetragen! +'+String(sc).replace('.',',') +' Punkte');
+  if(sc===MAX_PTS)showToast('🌟 Perfekter Tag! '+randEgo(name));
+  else if(sc>=DAY_GOAL&&prevSc<DAY_GOAL)showToast(randEgo(name));
+  else if(sc>prevSc)showToast('😴 Schlafdauer eingetragen! +1 Punkt');
+  else if(sc<=5){const t=getTaunt(name,getDayData(name,idx).sugar===0);if(t)showToast(t);}
   setTimeout(()=>window.scrollTo({top:scrollY}),10);
 };
 window.scrollToToday=function(){const el=document.getElementById('day-card-'+getToday(currentPerson));if(el)el.scrollIntoView({behavior:'smooth',block:'start'});};
