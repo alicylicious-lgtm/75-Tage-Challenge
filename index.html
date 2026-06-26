@@ -188,15 +188,15 @@ const PERSONS = [
   { name:'Michel',  start:new Date(2026,5,9), days:75 },
   { name:'Schubi',  start:new Date(2026,5,9), days:75 },
 ];
-const MAX_PTS=14, DAY_GOAL=8, GOAL_PCT=0.6, MAX_CC=8;
+const MAX_PTS=13, DAY_GOAL=8, GOAL_PCT=0.6, MAX_CC=8;
 const TASKS=[
   {key:'water',  icon:'💧',name:'Wasser',    sub:'2L = 2 Pkt · 1,5L = 1 Pkt',max:2},
   {key:'schritte',icon:'👟',name:'Schritte',   sub:'≥10.000 = 2 · ≥8.000 = 1 · <8.000 = 0',  max:2},
   {key:'training',icon:'🏋️',name:'Training',  sub:'≥40 Min. = 2 · ≥20 Min. = 1 · <20 Min. oder nichts = 0',  max:2},
   {key:'sugar',  icon:'🚫',name:'Kein Zucker',sub:'Kein Industrie-/Saccharose-Zucker = 3 · Gegessen = 0 (Fruchtzucker & Süßungsmittel erlaubt)', max:3},
   {key:'read',   icon:'📚',name:'Lesen/Hörbuch',     sub:'≥10 Seiten/Min. = 2 · ≥5 Seiten/Min. = 1 · <5 oder nichts = 0',    max:2},
+  {key:'sleep',  icon:'😴',name:'Schlaf',    sub:'≥7h Schlafdauer: 1 Pkt · Regelmäßiger Schlafbeginn (±45 Min): 1 Pkt', max:2, type:'sleep'},
   {key:'photo',  icon:'📸',name:'Foto',      sub:'Nur für dich — Progress verfolgen · keine Punkte',  max:0},
-  {key:'sleep',  icon:'😴',name:'Schlaf',    sub:'≥7h: 1,5 Pkt · Regelmäßige Einschlafzeit (±45 Min): 1,5 Pkt', max:3, type:'sleep'},
 ];
 const MOTIVATIONS=['💪 Stark gemacht!','🌟 Weiter so!','🔥 On fire!','✨ Unaufhaltbar!',
   '🏆 Unschlagbar!','⚡ Diszipliniert & fokussiert!','💎 Top!','🎯 Volltreffer!','🚀 So geht das!','❤️ Proud of you!'];
@@ -311,23 +311,52 @@ function sleepScore(name,idx){
   if(idx<17)return 0;
   const d=getDayData(name,idx);
   let pts=0;
-  // Duration
-  if(d.sleepHours!==null&&d.sleepHours>=7)pts+=1.5;
-  // Regularity
+  // Duration: 1pt for ≥7h
+  if(d.sleepHours!==null&&d.sleepHours>=7)pts+=1;
+  // Regularity: 1pt if within ±45min of personal average
   if(d.sleepTime){
     const avg=avgSleepTime(name,idx);
     if(avg===null){
-      pts+=1.5; // first 2 entries: free pts for just tracking
+      pts+=1; // first entries: free pt for tracking
     } else {
       const diff=Math.abs(sleepTimeToMins(d.sleepTime)-avg);
-      const diffMins=Math.min(diff,1440-diff); // handle midnight wraparound
-      if(diffMins<=45)pts+=1.5;
+      const diffMins=Math.min(diff,1440-diff);
+      if(diffMins<=45)pts+=1;
     }
   }
   return pts;
 }
+// Bonus point: Schlafbeginn between 22:00 and 23:00
+function sleepBonusPt(name,idx){
+  if(idx<17)return 0;
+  const d=getDayData(name,idx);
+  if(!d.sleepTime)return 0;
+  const mins=sleepTimeToMins(d.sleepTime);
+  return (mins>=22*60&&mins<23*60)?1:0;
+}
+// Count earned streak savers (5 consecutive days same sleep time ±30min)
+function earnedStreakSavers(name){
+  const today=getToday(name);
+  let earned=0,streak=0;
+  let lastTime=null;
+  for(let i=17;i<=today;i++){
+    const t=sleepTimeToMins(getDayData(name,i).sleepTime);
+    if(t===null){streak=0;lastTime=null;continue;}
+    if(lastTime===null){streak=1;lastTime=t;}
+    else{
+      const diff=Math.min(Math.abs(t-lastTime),1440-Math.abs(t-lastTime));
+      if(diff<=30){streak++;lastTime=t;}
+      else{streak=1;lastTime=t;}
+    }
+    if(streak>0&&streak%5===0)earned++;
+  }
+  return earned;
+}
+// Used streak savers stored in person config
+function usedStreakSavers(name){return getPerson(name).streakSaversUsed||0;}
+function availableStreakSavers(name){return Math.max(0,earnedStreakSavers(name)-usedStreakSavers(name));}
 const dayScore=(name,idx)=>TASKS.reduce((s,t)=>{
-  if(t.type==='sleep') return s+sleepScore(name,idx);
+  if(t.type==='sleep') return s+sleepScore(name,idx)+sleepBonusPt(name,idx);
   const v=getDayData(name,idx)[t.key];const n=typeof v==='number'?v:0;return s+n;
 },0);
 function totalScore(name){let s=0;for(let i=0;i<totalDays(name);i++)s+=dayScore(name,i);return s;}
@@ -632,16 +661,17 @@ function renderHome(){
             ${t.max===3&&!t.type
               ?`<span class="pt-badge pt-2">3 Pkt: kein Zucker</span><span class="pt-badge pt-0">0: gegessen</span>`
               :t.type==='sleep'
-              ?`<span class="pt-badge pt-2">3 Pkt: beides ✓</span><span class="pt-badge pt-1">1,5: eines ✓</span><span class="pt-badge pt-0">0: nichts eingetragen</span>
+              ?`<span class="pt-badge pt-2">2 Pkt: beides ✓</span><span class="pt-badge pt-1">1 Pkt: eines ✓</span><span class="pt-badge pt-0">0: nichts</span>
                 <span onclick="document.getElementById('sleep-info-box').style.display=document.getElementById('sleep-info-box').style.display==='none'?'block':'none'"
                   style="display:inline-block;margin-left:6px;cursor:pointer;font-size:14px;vertical-align:middle;">ℹ️</span>
                 <div id="sleep-info-box" style="display:none;margin-top:8px;background:var(--blush);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text);line-height:1.6;">
                   <b>😴 Wie funktioniert das Schlaf-Tracking?</b><br><br>
-                  Du trägst jeden Morgen die <b>Einschlafzeit</b> und die <b>Schlafdauer</b> vom Vorabend ein.<br><br>
-                  <b>+1,5 Punkte</b> wenn du <b>≥ 7 Stunden</b> geschlafen hast.<br>
-                  <b>+1,5 Punkte</b> wenn deine Einschlafzeit <b>maximal 45 Minuten</b> von deinem persönlichen Durchschnitt abweicht.<br><br>
+                  Du trägst jeden Morgen den <b>Schlafbeginn</b> und die <b>Schlafdauer</b> vom Vorabend ein.<br><br>
+                  <b>+1 Punkt</b> wenn du <b>≥ 7 Stunden</b> geschlafen hast.<br>
+                  <b>+1 Punkt</b> wenn dein Schlafbeginn <b>maximal 45 Minuten</b> von deinem persönlichen Durchschnitt abweicht.<br>
+                  <b>⭐ +1 Bonuspunkt</b> wenn dein Schlafbeginn zwischen <b>22:00 und 23:00 Uhr</b> liegt.<br><br>
                   💡 <i>Es geht nicht darum, vor 23 Uhr zu schlafen — sondern darum, <b>regelmäßig zur selben Zeit</b> zu schlafen. Laut aktueller Forschung ist Schlafregelmäßigkeit sogar wichtiger als die Dauer.</i><br><br>
-                  Die ersten zwei Einträge zählen automatisch für die Regelmäßigkeit, da noch kein Durchschnitt vorhanden ist.
+                  🛡 <b>Streakretter:</b> Wer 5 Tage in Folge denselben Schlafbeginn (±30 Min) hält, verdient einen Streakretter — nutzbar wenn mal ein Tag nicht klappt.
                 </div>`
               :t.max===2
               ?`<span class="pt-badge pt-2">2 Pkt: voll</span><span class="pt-badge pt-1">1 Pkt: halb</span><span class="pt-badge pt-0">0: nichts</span>`
@@ -655,7 +685,7 @@ function renderHome(){
   </div>
   <div class="rule-card">
     <div class="rule-title">🎯 Ziele</div>
-    <div class="goal-row"><span class="goal-label">Max. Punkte / Tag</span><span class="goal-val">14</span></div>
+    <div class="goal-row"><span class="goal-label">Max. Punkte / Tag</span><span class="goal-val">13</span></div>
     <div class="goal-row"><span class="goal-label">✅ Tagesziel</span><span class="goal-val">≥ 8 Punkte</span></div>
     <div class="goal-row"><span class="goal-label">🎉 Max. CC-Tage</span><span class="goal-val">${MAX_CC}</span></div>
     <div class="goal-row"><span class="goal-label">📅 Deine Challenge</span><span class="goal-val">${totalDays(currentPerson)} Tage · Tag ${today+1}</span></div>
@@ -767,31 +797,36 @@ function renderDayCard(name,idx,isToday,isMe){
     if(isMe){
       if(task.type==='sleep'){
         const sp=sleepScore(name,idx);
-        const ptsColor=sp===3?'#276221':sp>0?'#9C6500':'var(--text-soft)';
+        const bonus=sleepBonusPt(name,idx);
+        const total=sp+bonus;
+        const ptsColor=total>=2?'#276221':total>0?'#9C6500':'var(--text-soft)';
         const avg=avgSleepTime(name,idx);
         const avgStr=avg!==null?`Dein Ø: ${String(Math.floor(avg/60)).padStart(2,'0')}:${String(Math.round(avg%60)).padStart(2,'0')} Uhr`:'(noch kein Ø – erste Einträge zählen automatisch)';
+        const savers=availableStreakSavers(name);
         html+=`<div class="task-row" style="flex-direction:column;align-items:flex-start;gap:10px;padding-bottom:14px;">
           <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
             <div class="task-info"><span class="task-icon">${task.icon}</span>
               <div><div class="task-name">${task.name}</div><div class="task-sub">${task.sub}</div></div>
             </div>
-            <div style="font-family:'Playfair Display',serif;font-size:18px;color:${ptsColor};font-weight:700;min-width:36px;text-align:right;">${sp>0?sp:''}</div>
+            <div style="font-family:'Playfair Display',serif;font-size:18px;color:${ptsColor};font-weight:700;min-width:36px;text-align:right;">${total>0?total:''}</div>
           </div>
           <div style="width:100%;background:var(--blush);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;">
-            <div style="display:flex;gap:12px;flex-wrap:wrap;">
-              <div style="flex:1;min-width:120px;">
-                <label style="font-size:11px;color:var(--text-soft);display:block;margin-bottom:4px;">🕙 Einschlafzeit</label>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div>
+                <label style="font-size:11px;color:var(--text-soft);display:block;margin-bottom:4px;">🕙 Schlafbeginn</label>
                 <input type="time" value="${d.sleepTime||''}" onchange="setSleepTime('${name}',${idx},this.value)"
-                  style="width:100%;border:1.5px solid var(--rose-light);border-radius:8px;padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:white;outline:none;">
+                  style="width:100%;box-sizing:border-box;border:1.5px solid var(--rose-light);border-radius:8px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:white;outline:none;">
               </div>
-              <div style="flex:1;min-width:100px;">
-                <label style="font-size:11px;color:var(--text-soft);display:block;margin-bottom:4px;">⏱ Stunden geschlafen</label>
+              <div>
+                <label style="font-size:11px;color:var(--text-soft);display:block;margin-bottom:4px;">⏱ Schlafdauer (Stunden)</label>
                 <input type="number" min="1" max="12" step="0.5" value="${d.sleepHours||''}" placeholder="z.B. 7.5" onchange="setSleepHours('${name}',${idx},this.value)"
-                  style="width:100%;border:1.5px solid var(--rose-light);border-radius:8px;padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:white;outline:none;">
+                  style="width:100%;box-sizing:border-box;border:1.5px solid var(--rose-light);border-radius:8px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:white;outline:none;">
               </div>
             </div>
             <div style="font-size:11px;color:var(--text-soft);">📊 Regelmäßigkeit — ${avgStr}</div>
-            ${sp===3?`<div style="text-align:center;font-size:13px;font-weight:600;color:#276221;background:#D4EDDA;border-radius:8px;padding:6px;">🌙 Perfekter Schlaf! +3 Punkte</div>`:''}
+            ${bonus?`<div style="font-size:12px;font-weight:600;color:#276221;background:#D4EDDA;border-radius:8px;padding:6px 10px;">⭐ Bonus +1 Pkt: Schlafbeginn zwischen 22–23 Uhr!</div>`:''}
+            ${total>=2?`<div style="text-align:center;font-size:13px;font-weight:600;color:#276221;background:#D4EDDA;border-radius:8px;padding:6px;">🌙 Perfekter Schlaf!</div>`:''}
+            ${savers>0?`<div style="font-size:12px;color:var(--rose-deep);background:rgba(179,43,65,.08);border-radius:8px;padding:6px 10px;">🛡 ${savers} Streakretter verfügbar</div>`:''}
           </div>
         </div>`;
       } else if(task.max===3){
@@ -871,11 +906,16 @@ function renderDayCard(name,idx,isToday,isMe){
     }
   });
   if(isMe){
-    html+=`<label class="cc-toggle">
-      <input type="checkbox" ${d.cc?'checked':''} onchange="setCC('${name}',${idx},this.checked)">
+    const ccUsed=ccDays(name);
+    const ccLimitReached=ccUsed>=MAX_CC&&!d.cc;
+    html+=`<label class="cc-toggle" style="${ccLimitReached?'opacity:0.5;cursor:not-allowed;':''}">
+      <input type="checkbox" ${d.cc?'checked':''} ${ccLimitReached?'disabled':''} onchange="setCC('${name}',${idx},this.checked)">
       🎉 Conscious Choice Tag
-    </label>
-    <textarea class="note-input" rows="2" placeholder="Notiz… (optional)"
+    </label>`;
+    if(ccLimitReached){
+      html+=`<div style="font-size:11px;color:var(--rose-deep);margin-top:2px;margin-left:24px;">Limit erreicht – ${MAX_CC}/${MAX_CC} CC-Tage aufgebraucht 🚫</div>`;
+    }
+    html+=`<textarea class="note-input" rows="2" placeholder="Notiz… (optional)"
       onchange="setNote('${name}',${idx},this.value)">${d.note||''}</textarea>`;
   }else if(d.cc){
     html+=`<div style="margin-top:8px;font-size:12px;color:var(--rose-deep);">🎉 Conscious Choice Tag</div>`;
