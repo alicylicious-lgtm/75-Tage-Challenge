@@ -77,10 +77,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .medal-name{font-size:11px;font-weight:600;color:var(--rose-deep);margin-top:3px;}
 .medal-pts{font-size:10px;color:var(--text-soft);}
 .back-btn{display:flex;align-items:center;gap:6px;color:var(--rose-deep);font-size:14px;font-weight:600;cursor:pointer;margin-bottom:14px;}
-.stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;}
-.stat-card{background:white;border-radius:16px;padding:14px 10px;text-align:center;box-shadow:0 2px 12px rgba(74,124,126,.1);border:1px solid var(--rose-light);}
-.stat-val{font-family:'Playfair Display',serif;font-size:26px;color:var(--rose-deep);line-height:1;}
-.stat-label{font-size:10px;color:var(--text-soft);margin-top:4px;font-weight:500;text-transform:uppercase;letter-spacing:.5px;}
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:16px;}
+.stat-card{background:white;border-radius:14px;padding:10px 4px;text-align:center;box-shadow:0 2px 12px rgba(74,124,126,.1);border:1px solid var(--rose-light);}
+.stat-val{font-family:'Playfair Display',serif;font-size:20px;color:var(--rose-deep);line-height:1;}
+.stat-label{font-size:9px;color:var(--text-soft);margin-top:4px;font-weight:500;text-transform:uppercase;letter-spacing:.3px;}
 .progress-section{background:white;border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 2px 12px rgba(74,124,126,.1);border:1px solid var(--rose-light);}
 .progress-label{display:flex;justify-content:space-between;font-size:12px;color:var(--text-soft);margin-bottom:8px;font-weight:500;}
 .streak-badge{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#FF8C42,#FFB347);color:white;border-radius:99px;padding:4px 12px;font-size:12px;font-weight:600;margin-top:10px;}
@@ -915,12 +915,13 @@ function renderPerson(name,isMe){
     <div class="stat-card"><div class="stat-val">${total}</div><div class="stat-label">Punkte</div></div>
     <div class="stat-card"><div class="stat-val">${st}</div><div class="stat-label">Streak 🔥</div></div>
     <div class="stat-card"><div class="stat-val">${dot}</div><div class="stat-label">✅ Tage</div></div>
+    <div class="stat-card"><div class="stat-val" style="font-size:18px;">⭐${Array.from({length:getToday(name)+1},(_,i)=>sleepBonusPt(name,i)).reduce((a,b)=>a+b,0)}</div><div class="stat-label">Bonus</div></div>
+    <div class="stat-card"><div class="stat-val" style="font-size:18px;">🛡${availableStreakSavers(name)}</div><div class="stat-label">Retter</div></div>
   </div>
   <div class="progress-section">
     <div class="progress-label"><span>${name}s Fortschritt</span><span>${total} / ${goal} (${Math.min(pct,100)}%)</span></div>
     <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(pct,100)}%"></div></div>
     ${st>=3?`<div style="margin-top:10px"><span class="streak-badge">🔥 ${st} Tage am Stück!</span></div>`:''}
-    ${availableStreakSavers(name)>0?`<div style="margin-top:6px"><span class="streak-badge" style="background:linear-gradient(135deg,#B32B41,#E07080);">🛡 ${availableStreakSavers(name)} Streakretter</span></div>`:''}
   </div>
   <div class="timeline">
     ${Array.from({length:today+1},(_,i)=>{
