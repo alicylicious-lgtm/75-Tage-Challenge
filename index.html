@@ -196,7 +196,7 @@ const TASKS=[
   {key:'sugar',  icon:'🚫',name:'Kein Zucker',sub:'Kein Industrie-/Saccharose-Zucker = 3 · Gegessen = 0 (Fruchtzucker & Süßungsmittel erlaubt)', max:3},
   {key:'read',   icon:'📚',name:'Lesen/Hörbuch',     sub:'≥10 Seiten/Min. = 2 · ≥5 Seiten/Min. = 1 · <5 oder nichts = 0',    max:2},
   {key:'photo',  icon:'📸',name:'Foto',      sub:'Nur für dich — Progress verfolgen · keine Punkte',  max:0},
-  {key:'sleep',  icon:'😴',name:'Schlaf',    sub:'Vor 23 Uhr: 1,5 Pkt · 7–8 Std.: 1,5 Pkt · Beides: 3 Pkt', max:3, type:'sleep'},
+  {key:'sleep',  icon:'😴',name:'Schlaf',    sub:'≥7h: 1,5 Pkt · Regelmäßige Einschlafzeit (±45 Min): 1,5 Pkt', max:3, type:'sleep'},
 ];
 const MOTIVATIONS=['💪 Stark gemacht!','🌟 Weiter so!','🔥 On fire!','✨ Unaufhaltbar!',
   '🏆 Unschlagbar!','⚡ Diszipliniert & fokussiert!','💎 Top!','🎯 Volltreffer!','🚀 So geht das!','❤️ Proud of you!'];
@@ -292,13 +292,42 @@ function dayDate(name,idx){
   const d=new Date(getPerson(name).start);d.setDate(d.getDate()+idx);
   return d.toLocaleDateString('de-AT',{weekday:'short',day:'2-digit',month:'2-digit'});
 }
-const getDayData=(name,idx)=>{const d=state[name][idx]||{};return{water:d.water??null,schritte:d.schritte??null,training:d.training??null,sugar:d.sugar??null,read:d.read??null,photo:d.photo??null,sleepEarly:d.sleepEarly??null,sleepLong:d.sleepLong??null,sleepTime:d.sleepTime??'',sleepHours:d.sleepHours??null,note:d.note||'',cc:d.cc||false};};
-const dayScore=(name,idx)=>TASKS.reduce((s,t)=>{
-  if(t.type==='sleep'){
-    if(idx<17) return s;
-    const d=getDayData(name,idx);
-    return s+(d.sleepEarly===true?1.5:0)+(d.sleepLong===true?1.5:0);
+const getDayData=(name,idx)=>{const d=state[name][idx]||{};return{water:d.water??null,schritte:d.schritte??null,training:d.training??null,sugar:d.sugar??null,read:d.read??null,photo:d.photo??null,sleepTime:d.sleepTime??'',sleepHours:d.sleepHours??null,note:d.note||'',cc:d.cc||false};};
+
+// Returns sleepTime as minutes-since-midnight (e.g. "23:30" → 1410), or null
+function sleepTimeToMins(t){if(!t)return null;const[h,m]=t.split(':').map(Number);return h*60+m;}
+// Returns average sleepTime (mins) over days with entries before idx, up to 14 days back
+function avgSleepTime(name,idx){
+  const vals=[];
+  for(let i=Math.max(17,idx-14);i<idx;i++){
+    const t=sleepTimeToMins(getDayData(name,i).sleepTime);
+    if(t!==null)vals.push(t);
   }
+  if(!vals.length)return null;
+  return vals.reduce((a,b)=>a+b,0)/vals.length;
+}
+// Sleep score for a day: 1.5 for ≥7h, 1.5 for regularity (≤45min from avg, or first 2 entries get free pts)
+function sleepScore(name,idx){
+  if(idx<17)return 0;
+  const d=getDayData(name,idx);
+  let pts=0;
+  // Duration
+  if(d.sleepHours!==null&&d.sleepHours>=7)pts+=1.5;
+  // Regularity
+  if(d.sleepTime){
+    const avg=avgSleepTime(name,idx);
+    if(avg===null){
+      pts+=1.5; // first 2 entries: free pts for just tracking
+    } else {
+      const diff=Math.abs(sleepTimeToMins(d.sleepTime)-avg);
+      const diffMins=Math.min(diff,1440-diff); // handle midnight wraparound
+      if(diffMins<=45)pts+=1.5;
+    }
+  }
+  return pts;
+}
+const dayScore=(name,idx)=>TASKS.reduce((s,t)=>{
+  if(t.type==='sleep') return s+sleepScore(name,idx);
   const v=getDayData(name,idx)[t.key];const n=typeof v==='number'?v:0;return s+n;
 },0);
 function totalScore(name){let s=0;for(let i=0;i<totalDays(name);i++)s+=dayScore(name,i);return s;}
@@ -603,7 +632,17 @@ function renderHome(){
             ${t.max===3&&!t.type
               ?`<span class="pt-badge pt-2">3 Pkt: kein Zucker</span><span class="pt-badge pt-0">0: gegessen</span>`
               :t.type==='sleep'
-              ?`<span class="pt-badge pt-2">3 Pkt: beides ✓</span><span class="pt-badge pt-1">1,5: eines ✓</span><span class="pt-badge pt-0">0: keines</span>`
+              ?`<span class="pt-badge pt-2">3 Pkt: beides ✓</span><span class="pt-badge pt-1">1,5: eines ✓</span><span class="pt-badge pt-0">0: nichts eingetragen</span>
+                <span onclick="document.getElementById('sleep-info-box').style.display=document.getElementById('sleep-info-box').style.display==='none'?'block':'none'"
+                  style="display:inline-block;margin-left:6px;cursor:pointer;font-size:14px;vertical-align:middle;">ℹ️</span>
+                <div id="sleep-info-box" style="display:none;margin-top:8px;background:var(--blush);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text);line-height:1.6;">
+                  <b>😴 Wie funktioniert das Schlaf-Tracking?</b><br><br>
+                  Du trägst jeden Morgen die <b>Einschlafzeit</b> und die <b>Schlafdauer</b> vom Vorabend ein.<br><br>
+                  <b>+1,5 Punkte</b> wenn du <b>≥ 7 Stunden</b> geschlafen hast.<br>
+                  <b>+1,5 Punkte</b> wenn deine Einschlafzeit <b>maximal 45 Minuten</b> von deinem persönlichen Durchschnitt abweicht.<br><br>
+                  💡 <i>Es geht nicht darum, vor 23 Uhr zu schlafen — sondern darum, <b>regelmäßig zur selben Zeit</b> zu schlafen. Laut aktueller Forschung ist Schlafregelmäßigkeit sogar wichtiger als die Dauer.</i><br><br>
+                  Die ersten zwei Einträge zählen automatisch für die Regelmäßigkeit, da noch kein Durchschnitt vorhanden ist.
+                </div>`
               :t.max===2
               ?`<span class="pt-badge pt-2">2 Pkt: voll</span><span class="pt-badge pt-1">1 Pkt: halb</span><span class="pt-badge pt-0">0: nichts</span>`
               :t.max===0
@@ -727,49 +766,32 @@ function renderDayCard(name,idx,isToday,isMe){
     if(task.type==='sleep' && idx<17) return;
     if(isMe){
       if(task.type==='sleep'){
-        const earlyOn=d.sleepEarly===true, earlyOff=d.sleepEarly===false;
-        const longOn=d.sleepLong===true,   longOff=d.sleepLong===false;
-        const sleepPts=(earlyOn?1.5:0)+(longOn?1.5:0);
-        const ptsColor=sleepPts===3?'#276221':sleepPts>0?'#9C6500':'var(--text-soft)';
+        const sp=sleepScore(name,idx);
+        const ptsColor=sp===3?'#276221':sp>0?'#9C6500':'var(--text-soft)';
+        const avg=avgSleepTime(name,idx);
+        const avgStr=avg!==null?`Dein Ø: ${String(Math.floor(avg/60)).padStart(2,'0')}:${String(Math.round(avg%60)).padStart(2,'0')} Uhr`:'(noch kein Ø – erste Einträge zählen automatisch)';
         html+=`<div class="task-row" style="flex-direction:column;align-items:flex-start;gap:10px;padding-bottom:14px;">
           <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
             <div class="task-info"><span class="task-icon">${task.icon}</span>
               <div><div class="task-name">${task.name}</div><div class="task-sub">${task.sub}</div></div>
             </div>
-            <div style="font-family:'Playfair Display',serif;font-size:18px;color:${ptsColor};font-weight:700;min-width:36px;text-align:right;">${sleepPts>0?sleepPts:''}</div>
+            <div style="font-family:'Playfair Display',serif;font-size:18px;color:${ptsColor};font-weight:700;min-width:36px;text-align:right;">${sp>0?sp:''}</div>
           </div>
           <div style="width:100%;background:var(--blush);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-              <div>
-                <div style="font-size:13px;font-weight:600;color:var(--text);">🕙 Vor 23 Uhr eingeschlafen</div>
-                <div style="font-size:11px;color:var(--text-soft);margin-top:2px;">1,5 Punkte</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:120px;">
+                <label style="font-size:11px;color:var(--text-soft);display:block;margin-bottom:4px;">🕙 Einschlafzeit</label>
+                <input type="time" value="${d.sleepTime||''}" onchange="setSleepTime('${name}',${idx},this.value)"
+                  style="width:100%;border:1.5px solid var(--rose-light);border-radius:8px;padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:white;outline:none;">
               </div>
-              <div class="score-btns">
-                <button class="score-btn ${earlyOff?'sel-0':''}" onclick="setSleepEarly('${name}',${idx},false)">✗</button>
-                <button class="score-btn ${earlyOn?'sel-2':''}" onclick="setSleepEarly('${name}',${idx},true)">✓</button>
-              </div>
-            </div>
-            ${earlyOn||earlyOff?`<div>
-              <label style="font-size:11px;color:var(--text-soft);display:block;margin-bottom:4px;">Uhrzeit (optional)</label>
-              <input type="time" value="${d.sleepTime||''}" onchange="setSleepTime('${name}',${idx},this.value)"
-                style="border:1.5px solid var(--rose-light);border-radius:8px;padding:5px 10px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:white;outline:none;">
-            </div>`:''}
-            <div style="border-top:1px solid var(--blush-mid);padding-top:10px;display:flex;align-items:center;justify-content:space-between;">
-              <div>
-                <div style="font-size:13px;font-weight:600;color:var(--text);">⏱ 7–8 Stunden geschlafen</div>
-                <div style="font-size:11px;color:var(--text-soft);margin-top:2px;">1,5 Punkte</div>
-              </div>
-              <div class="score-btns">
-                <button class="score-btn ${longOff?'sel-0':''}" onclick="setSleepLong('${name}',${idx},false)">✗</button>
-                <button class="score-btn ${longOn?'sel-2':''}" onclick="setSleepLong('${name}',${idx},true)">✓</button>
+              <div style="flex:1;min-width:100px;">
+                <label style="font-size:11px;color:var(--text-soft);display:block;margin-bottom:4px;">⏱ Stunden geschlafen</label>
+                <input type="number" min="1" max="12" step="0.5" value="${d.sleepHours||''}" placeholder="z.B. 7.5" onchange="setSleepHours('${name}',${idx},this.value)"
+                  style="width:100%;border:1.5px solid var(--rose-light);border-radius:8px;padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:white;outline:none;">
               </div>
             </div>
-            ${longOn||longOff?`<div>
-              <label style="font-size:11px;color:var(--text-soft);display:block;margin-bottom:4px;">Stunden (optional)</label>
-              <input type="number" min="1" max="12" step="0.5" value="${d.sleepHours||''}" placeholder="z.B. 7.5" onchange="setSleepHours('${name}',${idx},this.value)"
-                style="width:100px;border:1.5px solid var(--rose-light);border-radius:8px;padding:5px 10px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:white;outline:none;">
-            </div>`:''}
-            ${sleepPts===3?`<div style="text-align:center;font-size:13px;font-weight:600;color:#276221;background:#D4EDDA;border-radius:8px;padding:6px;">🌙 Perfekter Schlaf! +3 Punkte</div>`:''}
+            <div style="font-size:11px;color:var(--text-soft);">📊 Regelmäßigkeit — ${avgStr}</div>
+            ${sp===3?`<div style="text-align:center;font-size:13px;font-weight:600;color:#276221;background:#D4EDDA;border-radius:8px;padding:6px;">🌙 Perfekter Schlaf! +3 Punkte</div>`:''}
           </div>
         </div>`;
       } else if(task.max===3){
@@ -802,10 +824,8 @@ function renderDayCard(name,idx,isToday,isMe){
     }else{
       // READ-ONLY: show values but no click handlers, visually dimmed
       if(task.type==='sleep'){
-        const earlyOn=d.sleepEarly===true, earlyOff=d.sleepEarly===false;
-        const longOn=d.sleepLong===true,   longOff=d.sleepLong===false;
-        const sleepPts=(earlyOn?1.5:0)+(longOn?1.5:0);
-        const ptsColor=sleepPts===3?'#276221':sleepPts>0?'#9C6500':'var(--text-soft)';
+        const sp=sleepScore(name,idx);
+        const ptsColor=sp===3?'#276221':sp>0?'#9C6500':'var(--text-soft)';
         let meta='';
         if(d.sleepTime)meta+=`🕙 ${d.sleepTime} Uhr`;
         if(d.sleepHours)meta+=(meta?' · ':'')+`⏱ ${d.sleepHours}h`;
@@ -815,15 +835,11 @@ function renderDayCard(name,idx,isToday,isMe){
               <div>
                 <div class="task-name">${task.name}</div>
                 <div class="task-sub">${task.sub}</div>
-                ${meta?`<div style="font-size:11px;color:var(--text-soft);margin-top:3px;">${meta}</div>`:''}
+                ${meta?`<div style="font-size:11px;color:var(--text-soft);margin-top:3px;">${meta}</div>`:'<div style="font-size:11px;color:var(--text-soft);margin-top:3px;">noch nicht eingetragen</div>'}
               </div>
             </div>
-            <div style="font-family:'Playfair Display',serif;font-size:18px;color:${ptsColor};font-weight:700;">${sleepPts>0?sleepPts:'–'}</div>
+            <div style="font-family:'Playfair Display',serif;font-size:18px;color:${ptsColor};font-weight:700;">${sp>0?sp:'–'}</div>
           </div>
-          ${(earlyOn||earlyOff||longOn||longOff)?`<div style="width:100%;background:var(--blush);border-radius:10px;padding:8px 12px;display:flex;gap:12px;font-size:12px;">
-            <span style="color:${earlyOn?'#276221':earlyOff?'#9C0006':'var(--text-soft)'};">${earlyOn?'✅':'❌'} Vor 23 Uhr</span>
-            <span style="color:${longOn?'#276221':longOff?'#9C0006':'var(--text-soft)'};">${longOn?'✅':'❌'} 7–8 Std.</span>
-          </div>`:''}
         </div>`;
       } else if(task.max===3){
         html+=`<div class="task-row">
@@ -1002,45 +1018,27 @@ window.setCC=function(name,idx,val){
   state[name][idx].cc=val;savePerson(name);
   if(val)showToast('🎉 Conscious Choice – genieß es!');
 };
-window.setSleepEarly=function(name,idx,val){
-  if(name!==currentPerson){showToast('🔒 Nur '+name+' kann das ändern!');return;}
-  if(!state[name][idx])state[name][idx]={};
-  const prev=state[name][idx].sleepEarly;
-  state[name][idx].sleepEarly=(prev===val)?null:val;
-  window._currentPage='person';window._currentArg=null;
-  const scrollY=window.scrollY;
-  document.getElementById('main-content').innerHTML=renderPerson(currentPerson,true);
-  savePerson(name);
-  const sc=dayScore(name,idx);
-  if(sc===MAX_PTS)showToast('🌟 Perfekter Tag! '+MOTIVATIONS[Math.floor(Math.random()*MOTIVATIONS.length)]);
-  else if(sc>=3)showToast('🌙 Schlaf eingetragen! +'+sc.toString().replace('.',',')+' Punkte');
-  setTimeout(()=>{window.scrollTo({top:scrollY});const el=document.getElementById('day-card-'+idx);if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});},30);
-};
-window.setSleepLong=function(name,idx,val){
-  if(name!==currentPerson){showToast('🔒 Nur '+name+' kann das ändern!');return;}
-  if(!state[name][idx])state[name][idx]={};
-  const prev=state[name][idx].sleepLong;
-  state[name][idx].sleepLong=(prev===val)?null:val;
-  window._currentPage='person';window._currentArg=null;
-  const scrollY=window.scrollY;
-  document.getElementById('main-content').innerHTML=renderPerson(currentPerson,true);
-  savePerson(name);
-  const sc=dayScore(name,idx);
-  if(sc===MAX_PTS)showToast('🌟 Perfekter Tag! '+MOTIVATIONS[Math.floor(Math.random()*MOTIVATIONS.length)]);
-  else if(sc>=3)showToast('😴 Schlaf eingetragen! +'+sc.toString().replace('.',',')+' Punkte');
-  setTimeout(()=>{window.scrollTo({top:scrollY});const el=document.getElementById('day-card-'+idx);if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});},30);
-};
 window.setSleepTime=function(name,idx,val){
   if(name!==currentPerson)return;
   if(!state[name][idx])state[name][idx]={};
   state[name][idx].sleepTime=val;
   savePerson(name);
+  // re-render to update points display
+  const scrollY=window.scrollY;
+  document.getElementById('main-content').innerHTML=renderPerson(currentPerson,true);
+  setTimeout(()=>window.scrollTo({top:scrollY}),10);
 };
 window.setSleepHours=function(name,idx,val){
   if(name!==currentPerson)return;
   if(!state[name][idx])state[name][idx]={};
   state[name][idx].sleepHours=parseFloat(val)||null;
   savePerson(name);
+  const scrollY=window.scrollY;
+  document.getElementById('main-content').innerHTML=renderPerson(currentPerson,true);
+  const sc=dayScore(name,idx);
+  if(sc===MAX_PTS)showToast('🌟 Perfekter Tag! '+MOTIVATIONS[Math.floor(Math.random()*MOTIVATIONS.length)]);
+  else if(sc>=3)showToast('😴 Schlaf eingetragen! +'+String(sc).replace('.',',') +' Punkte');
+  setTimeout(()=>window.scrollTo({top:scrollY}),10);
 };
 window.scrollToToday=function(){const el=document.getElementById('day-card-'+getToday(currentPerson));if(el)el.scrollIntoView({behavior:'smooth',block:'start'});};
 window.scrollToDay=function(idx){const el=document.getElementById('day-card-'+idx);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});};
