@@ -449,7 +449,16 @@ function dayDate(name,idx){
   const d=new Date(getPerson(name).start);d.setDate(d.getDate()+idx);
   return d.toLocaleDateString('de-AT',{weekday:'short',day:'2-digit',month:'2-digit'});
 }
-const getDayData=(name,idx)=>{const d=state[name][idx]||{};return{water:d.water??null,schritte:d.schritte??null,training:d.training??null,sugar:d.sugar??null,read:d.read??null,photo:d.photo??null,sleepTime:d.sleepTime??'',sleepHours:d.sleepHours??null,note:d.note||'',cc:d.cc||false};};
+const getDayData=(name,idx)=>{const d=state[name][idx]||{};
+  const sleepMins=sleepTimeToMins(d.sleepTime||'');
+  const wakeMins=sleepTimeToMins(d.wakeTime||'');
+  let calcHours=d.sleepHours??null;
+  if(sleepMins!==null&&wakeMins!==null){
+    let diff=wakeMins-sleepMins;
+    if(diff<=0)diff+=1440; // overnight
+    calcHours=Math.round(diff/60*10)/10;
+  }
+  return{water:d.water??null,schritte:d.schritte??null,training:d.training??null,sugar:d.sugar??null,read:d.read??null,photo:d.photo??null,sleepTime:d.sleepTime??'',wakeTime:d.wakeTime??'',sleepHours:calcHours,note:d.note||'',cc:d.cc||false};};
 
 // Returns sleepTime as minutes-since-midnight (e.g. "23:30" → 1410), or null
 function sleepTimeToMins(t){if(!t)return null;const[h,m]=t.split(':').map(Number);return h*60+m;}
@@ -977,9 +986,10 @@ function renderDayCard(name,idx,isToday,isMe){
                   style="width:100%;box-sizing:border-box;border:1.5px solid var(--rose-light);border-radius:8px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:white;outline:none;">
               </div>
               <div>
-                <label style="font-size:11px;color:var(--text-soft);display:block;margin-bottom:4px;">⏱ Schlafdauer (Stunden)</label>
-                <input type="number" min="1" max="12" step="0.5" value="${d.sleepHours||''}" placeholder="z.B. 7.5" onchange="setSleepHours('${name}',${idx},this.value)"
+                <label style="font-size:11px;color:var(--text-soft);display:block;margin-bottom:4px;">🌅 Aufwachzeit</label>
+                <input type="time" value="${d.wakeTime||''}" onchange="setWakeTime('${name}',${idx},this.value)"
                   style="width:100%;box-sizing:border-box;border:1.5px solid var(--rose-light);border-radius:8px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:white;outline:none;">
+                ${d.wakeTime&&d.sleepTime?`<div style="font-size:11px;color:var(--text-soft);margin-top:4px;">Schlafdauer: <b>${d.sleepHours}h</b></div>`:''}
               </div>
             </div>
             <div style="font-size:11px;color:var(--text-soft);">📊 Regelmäßigkeit — ${avgStr}</div>
@@ -1022,7 +1032,8 @@ function renderDayCard(name,idx,isToday,isMe){
         const ptsColor=sp===3?'#276221':sp>0?'#9C6500':'var(--text-soft)';
         let meta='';
         if(d.sleepTime)meta+=`🕙 ${d.sleepTime} Uhr`;
-        if(d.sleepHours)meta+=(meta?' · ':'')+`⏱ ${d.sleepHours}h`;
+        if(d.wakeTime)meta+=(meta?' · ':'')+`🌅 ${d.wakeTime} Uhr`;
+        if(d.sleepHours)meta+=(meta?' · ':'')+`Schlafdauer: ${d.sleepHours}h`;
         html+=`<div class="task-row" style="flex-direction:column;align-items:flex-start;gap:6px;padding-bottom:12px;">
           <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
             <div class="task-info"><span class="task-icon">${task.icon}</span>
@@ -1239,11 +1250,11 @@ window.setSleepTime=function(name,idx,val){
   if(newSavers>prevSavers)showToast('🛡 Joker verdient! 5 Tage regelmäßiger Schlaf!');
   setTimeout(()=>window.scrollTo({top:scrollY}),10);
 };
-window.setSleepHours=function(name,idx,val){
+window.setWakeTime=function(name,idx,val){
   if(name!==currentPerson)return;
   if(!state[name][idx])state[name][idx]={};
   const prevSc=dayScore(name,idx);
-  state[name][idx].sleepHours=parseFloat(val)||null;
+  state[name][idx].wakeTime=val;
   savePerson(name);
   const scrollY=window.scrollY;
   document.getElementById('main-content').innerHTML=renderPerson(currentPerson,true);
@@ -1251,7 +1262,7 @@ window.setSleepHours=function(name,idx,val){
   if(sc===MAX_PTS&&prevSc<MAX_PTS)showToast('🌟 Perfekter Tag! '+randEgo(name));
   else if(sc>=DAY_GOAL&&prevSc<DAY_GOAL)showToast(randEgo(name));
   else if(sc<=5&&prevSc>5){const t=getTaunt(name,getDayData(name,idx).sugar===0);if(t)showToast(t);}
-  else if(sc>prevSc)showToast('😴 Schlafdauer eingetragen! +1 Punkt');
+  else if(sc>prevSc)showToast('😴 Schlafdauer berechnet: '+getDayData(name,idx).sleepHours+'h');
   setTimeout(()=>window.scrollTo({top:scrollY}),10);
 };
 window.scrollToToday=function(){const el=document.getElementById('day-card-'+getToday(currentPerson));if(el)el.scrollIntoView({behavior:'smooth',block:'start'});};
